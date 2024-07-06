@@ -14,10 +14,15 @@ fn visualize_audio() -> Result<(), Error> {
     let input_file = env::var("INPUT_AUDIO_FILE").unwrap_or_else(|_| "input.mp3".to_string());
     let output_file = env::var("OUTPUT_VIDEO_FILE").unwrap_or_else(|_| "output.mp4".to_string());
 
+    info!("Input audio file: {}", input_file);
+    info!("Output video file: {}", output_file);
+
     // Build the pipeline
     let pipeline_str = format!(
-        "filesrc location={} ! decodebin ! audioconvert ! audioresample ! appsink name=audio_sink \
-         projectm name=visualizer ! videoconvert ! x264enc ! mp4mux name=mux ! filesink location={}",
+        "filesrc location={} ! decodebin name=dec ! appsink name=audio_sink \
+          dec. ! queue ! audioconvert ! audioresample ! tee name=t \
+          t. ! queue ! avenc_aac ! mp4mux name=mux ! filesink location={} \
+          t. ! queue ! audioconvert ! projectm ! videoconvert ! x264enc ! mux.",
         input_file, output_file
     );
 
@@ -157,8 +162,7 @@ fn visualize_audio() -> Result<(), Error> {
 }
 
 fn main() {
-    // Initialize the logger
-    env_logger::init();
+    init_logger();
 
     // Create a new runtime
     let runtime = Runtime::new().expect("Failed to create runtime");
@@ -169,4 +173,8 @@ fn main() {
             error!("Error occurred: {:?}", err);
         }
     });
+}
+
+fn init_logger() {
+    env_logger::init();
 }
